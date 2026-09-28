@@ -1,27 +1,18 @@
-import EventForm from "../components/EventForm";
 import EventSection from "../components/EventSection";
 import Hero from "../components/Hero";
 
-function HomePage({events,
-    onAddEvent,
-    onDeleteEvent,
-    onEditEvent,
-    editingEvent,
-    onUpdateEvent,}){
-    return(
-        <>
-        <Hero title="Discover what is happening in Campus"
-        description="Find workshops,sports,activities,club Meeting,and opportunities to connect with other students."/>
-        <EventForm 
-        onAddEvent={onAddEvent}
-        editingEvent={editingEvent}
-        onUpdateEvent={onUpdateEvent}/>
-        <EventSection 
-        events={events}
-        onDeleteEvent={onDeleteEvent}
-        onEditEvent={onEditEvent}
-        />
-        </>
+function HomePage({ providers }) {
+    return (
+        <main className="home-page">
+            <Hero
+                title="Good local help. Booked simply."
+                description="Find an electrician, a tutor, a cleaner, or the right person for the job. Compare verified profiles, check real availability, and request a time that suits you."
+            />
+            <div className="directory-wrap">
+                <EventSection providers={providers} />
+            </div>
+        </main>
     );
 }
+
 export default HomePage;

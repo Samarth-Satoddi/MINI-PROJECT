@@ -2,11 +2,11 @@ function AboutPage(){
     return (
         <section className="page-heading">
             <p className="section-label">
-                About Campus Connect
+                Local Service Booking Platform
             </p>
-            <h1>One Place for College Activities</h1>
+            <h1>Local help, booked simply</h1>
             <p>
-                Campus Connect helps students discover workshops,clubs,sportsand cultural events happening in college.
+                Find electricians, tutors, cleaners, and other service professionals nearby. Compare provider profiles, review ratings, choose an available time, and request a booking.
             </p>
         </section>
     );

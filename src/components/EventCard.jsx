@@ -1,72 +1,28 @@
 import { Link } from "react-router";
 
-function EventCard({
-  _id,
-  title,
-  date,
-  time,
-  location,
-  category,
-  description,
-  onDeleteEvent,
-  onEditEvent,
-}) {
-  function handleDeleteClick() {
-    onDeleteEvent(_id);
-  }
-
-  function handleEditClick(){
-    onEditEvent(_id)
-  }
-
+function EventCard({ provider }) {
   return (
-    <article className="event-card">
-      <p className="event-category">
-        {category}
+    <article className="provider-card">
+      <p className="provider-category">{provider.category}</p>
+      <h3>{provider.name}</h3>
+      <p className="provider-description">
+        {provider.description || "Local service provider"}
       </p>
 
-      <h3>{title}</h3>
-
-      <p className="event-description">
-        {description}
-      </p>
-
-      <div className="event-details">
+      <div className="provider-details">
+        <p><strong>Location:</strong> {provider.location}</p>
+        <p><strong>Rate:</strong> ${provider.hourlyRate}/hour</p>
         <p>
-          <strong>Date:</strong> {date}
-        </p>
-
-        <p>
-          <strong>Time:</strong> {time}
-        </p>
-
-        <p>
-          <strong>Location:</strong> {location}
+          <strong>Rating:</strong>{" "}
+          {provider.reviewCount > 0
+            ? `${provider.averageRating.toFixed(1)} / 5 (${provider.reviewCount})`
+            : "No reviews yet"}
         </p>
       </div>
 
-      <Link
-        className="details-button"
-        to={`/events/${_id}`}
-      >
-        View Details
+      <Link className="details-button" to={`/providers/${provider._id}`}>
+        View profile and availability
       </Link>
-
-      <button
-        className="edit-button"
-        type="button"
-        onClick={handleEditClick}
-      >
-        Edit
-      </button>
-
-      <button
-        className="delete-button"
-        type="button"
-        onClick={handleDeleteClick}
-      >
-        Delete
-      </button>
     </article>
   );
 }

@@ -1,25 +1,21 @@
 import EventSection from "../components/EventSection";
 
-function EventsPage({ events, onDeleteEvent }) {
-    
+function EventsPage({ providers }) {
     return (
         <>
-            <section>
+            <section className="page-heading">
                 <p className="section-label">
-                    All Campus Activities
+                    Local professionals
                 </p>
 
-                <h1>Events</h1>
+                <h1>Find a service provider</h1>
 
                 <p>
-                    Explore all workshops, clubs, sports, and cultural activities
+                    Browse verified providers by service and location, then open a profile to see ratings and available booking times.
                 </p>
             </section>
 
-            <EventSection
-                events={events}
-                onDeleteEvent={onDeleteEvent}
-            />
+            <EventSection providers={providers} title="All service providers" />
         </>
     );
 }

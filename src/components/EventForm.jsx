@@ -1,189 +1,154 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
-function EventForm({ onAddEvent, editingEvent, onUpdateEvent, }) {
-  const [formData, setFormData] = useState({
-    title: "",
-    category: "",
-    date: "",
-    time: "",
-    location: "",
-    description: "",
-  });
+const emptyProvider = {
+  name: "",
+  category: "",
+  location: "",
+  hourlyRate: "",
+  phone: "",
+  email: "",
+  services: "",
+  description: "",
+};
 
-  useEffect(function(){
-    if(editingEvent !== null){
-      setFormData({
-        title: editingEvent.title,
-        category: editingEvent.category,
-        date: new Date(editingEvent.date).toISOString().split("T")[0],
-        time: new Date(`1970-01-01 ${editingEvent.time}`)
-          .toTimeString()
-          .slice(0, 5),
-        location: editingEvent.location,
-        description: editingEvent.description,
-      });
-    }
-  }, [editingEvent]);
-
+function EventForm({ onAddProvider }) {
+  const [formData, setFormData] = useState(emptyProvider);
+  const [availability, setAvailability] = useState([
+    { date: "", startTime: "", endTime: "" },
+  ]);
   const [formError, setFormError] = useState("");
+  const [message, setMessage] = useState("");
 
   function handleChange(event) {
-    const inputName = event.target.name;
-    const inputValue = event.target.value;
-
-    setFormData({
-      ...formData,
-      [inputName]: inputValue,
-    });
+    setFormData({ ...formData, [event.target.name]: event.target.value });
   }
 
-  function handleSubmit(event) {
-    event.preventDefault();
+  function handleSlotChange(index, event) {
+    setAvailability(availability.map((slot, slotIndex) => (
+      slotIndex === index
+        ? { ...slot, [event.target.name]: event.target.value }
+        : slot
+    )));
+  }
 
-    if (
-      formData.title === "" ||
-      formData.category === "" ||
-      formData.date === "" ||
-      formData.time === "" ||
-      formData.location === "" ||
-      formData.description === ""
-    ) {
-      setFormError("Please fill in every field.");
+  function addSlot() {
+    setAvailability([...availability, { date: "", startTime: "", endTime: "" }]);
+  }
+
+  function removeSlot(index) {
+    setAvailability(availability.filter((_, slotIndex) => slotIndex !== index));
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setFormError("");
+    setMessage("");
+
+    if (availability.length === 0 || availability.some(slot => (
+      !slot.date || !slot.startTime || !slot.endTime || slot.startTime >= slot.endTime
+    ))) {
+      setFormError("Add at least one valid availability time.");
       return;
     }
 
-    if (editingEvent !== null) {
-      const updatedEvent = {
-        _id: editingEvent._id,
-        title: formData.title,
-        category: formData.category,
-        date: formData.date,
-        time: formData.time,
-        location: formData.location,
-        description: formData.description,
-      };
-
-      onUpdateEvent(updatedEvent);
-    } else {
-      const newEvent = {
-        // id: Date.now(),
-        title: formData.title,
-        category: formData.category,
-        date: formData.date,
-        time: formData.time,
-        location: formData.location,
-        description: formData.description,
-      };
-
-      onAddEvent(newEvent);
+    try {
+      await onAddProvider({
+        ...formData,
+        hourlyRate: Number(formData.hourlyRate),
+        services: formData.services.split(",").map(service => service.trim()).filter(Boolean),
+        availability,
+      });
+      setFormData(emptyProvider);
+      setAvailability([{ date: "", startTime: "", endTime: "" }]);
+      setMessage("Profile submitted. It will appear after admin verification.");
+    } catch (error) {
+      setFormError(error.message);
     }
-
-    setFormData({
-      title: "",
-      category: "",
-      date: "",
-      time: "",
-      location: "",
-      description: "",
-    });
-
-    setFormError("");
   }
 
   return (
-    <section className="event-form-section">
-      <p className="section-label">
-        {editingEvent !== null ? "Update Activity" : "Create Activity"}
-      </p>
+    <section className="provider-form-section">
+      <p className="section-label">For local professionals</p>
+      <h2>Create a provider profile</h2>
 
-      <h2>{editingEvent !== null ? "Edit Campus Event" : "Add a New Campus Event"}</h2>
-
-      <form className="event-form" onSubmit={handleSubmit}>
+      <form className="provider-form" onSubmit={handleSubmit}>
         <div className="form-group">
-          <label htmlFor="title">Event Title</label>
-
-          <input
-            id="title"
-            name="title"
-            type="text"
-            value={formData.title}
-            onChange={handleChange}
-            placeholder="Example: React Workshop"
-          />
+          <label htmlFor="name">Provider name</label>
+          <input id="name" name="name" value={formData.name} onChange={handleChange} required />
         </div>
 
         <div className="form-group">
-          <label htmlFor="category">Category</label>
-
-          <select
-            id="category"
-            name="category"
-            value={formData.category}
-            onChange={handleChange}
-          >
-            <option value="">Select a category</option>
-            <option value="Technology">Technology</option>
-            <option value="Sports">Sports</option>
-            <option value="Cultural">Cultural</option>
-            <option value="Club">Club</option>
-            <option value="Workshop">Workshop</option>
+          <label htmlFor="category">Service category</label>
+          <select id="category" name="category" value={formData.category} onChange={handleChange} required>
+            <option value="">Choose a service</option>
+            <option>Electrician</option>
+            <option>Tutor</option>
+            <option>Cleaner</option>
+            <option>Plumber</option>
+            <option>Carpenter</option>
+            <option>Other</option>
           </select>
         </div>
 
         <div className="form-group">
-          <label htmlFor="date">Date</label>
-
-          <input
-            id="date"
-            name="date"
-            type="date"
-            value={formData.date}
-            onChange={handleChange}
-          />
+          <label htmlFor="location">Service location</label>
+          <input id="location" name="location" value={formData.location} onChange={handleChange} required />
         </div>
 
         <div className="form-group">
-          <label htmlFor="time">Time</label>
+          <label htmlFor="hourlyRate">Hourly rate</label>
+          <input id="hourlyRate" name="hourlyRate" type="number" min="0" value={formData.hourlyRate} onChange={handleChange} required />
+        </div>
 
-          <input
-            id="time"
-            name="time"
-            type="time"
-            value={formData.time}
-            onChange={handleChange}
-          />
+        <div className="form-group">
+          <label htmlFor="phone">Phone</label>
+          <input id="phone" name="phone" type="tel" value={formData.phone} onChange={handleChange} />
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="email">Email</label>
+          <input id="email" name="email" type="email" value={formData.email} onChange={handleChange} />
         </div>
 
         <div className="form-group full-width">
-          <label htmlFor="location">Location</label>
-
-          <input
-            id="location"
-            name="location"
-            type="text"
-            value={formData.location}
-            onChange={handleChange}
-            placeholder="Example: Seminar Hall"
-          />
+          <label htmlFor="services">Services offered</label>
+          <input id="services" name="services" value={formData.services} onChange={handleChange} placeholder="Repairs, installation, maintenance" />
         </div>
 
         <div className="form-group full-width">
-          <label htmlFor="description">Description</label>
-
-          <textarea
-            id="description"
-            name="description"
-            value={formData.description}
-            onChange={handleChange}
-            placeholder="Describe the event"
-          />
+          <label htmlFor="description">Profile description</label>
+          <textarea id="description" name="description" value={formData.description} onChange={handleChange} />
         </div>
 
-        {formError !== "" && <p className="form-error">{formError}</p>}
+        <fieldset className="availability-editor full-width">
+          <legend>Availability calendar</legend>
+          {availability.map((slot, index) => (
+            <div className="availability-row" key={index}>
+              <label>
+                Date
+                <input type="date" name="date" value={slot.date} onChange={event => handleSlotChange(index, event)} required />
+              </label>
+              <label>
+                From
+                <input type="time" name="startTime" value={slot.startTime} onChange={event => handleSlotChange(index, event)} required />
+              </label>
+              <label>
+                To
+                <input type="time" name="endTime" value={slot.endTime} onChange={event => handleSlotChange(index, event)} required />
+              </label>
+              {availability.length > 1 && (
+                <button className="text-button" type="button" onClick={() => removeSlot(index)} aria-label="Remove availability time">
+                  Remove
+                </button>
+              )}
+            </div>
+          ))}
+          <button className="text-button" type="button" onClick={addSlot}>Add another time</button>
+        </fieldset>
 
-        <button className="submit-button" type="submit">
-          {editingEvent !==null ? "Update Event" : "Add Event"}
-        </button>
+        {formError && <p className="form-error">{formError}</p>}
+        {message && <p className="form-success">{message}</p>}
+        <button className="submit-button" type="submit">Submit provider profile</button>
       </form>
     </section>
   );

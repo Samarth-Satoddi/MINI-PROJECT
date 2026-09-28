@@ -10,117 +10,151 @@ import HomePage from "./pages/HomePage";
 import EventsPage from "./pages/EventsPage";
 import EventDetailsPage from "./pages/EventDetailsPage";
 import AboutPage from "./pages/AboutPage";
+import BookingsPage from "./pages/BookingsPage";
+import AdminPage from "./pages/AdminPage";
+import ProviderJoinPage from "./pages/ProviderJoinPage";
 
+const API_URL = "http://localhost:5000";
+
+async function apiRequest(path, options = {}) {
+    const response = await fetch(`${API_URL}${path}`, {
+        ...options,
+        headers: {
+            "Content-Type": "application/json",
+            ...options.headers,
+        },
+    });
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+        throw new Error(data.message || "The request could not be completed.");
+    }
+
+    return data;
+}
 
 function App() {
-    const [events, setEvents] = useState([]);
-    const [editingEvent, setEditingEvent] = useState(null);
+    const [providers, setProviders] = useState([]);
+    const [providersLoaded, setProvidersLoaded] = useState(false);
+    const [bookings, setBookings] = useState([]);
+    const [loadError, setLoadError] = useState("");
 
-    useEffect(()=>{
-        fetch("http://localhost:5000/api/events")
-        .then((response)=>response.json())
-        .then((data)=>{
-            setEvents(data);
-        });
+    async function loadProviders() {
+        const data = await apiRequest("/api/providers");
+        setProviders(data);
+        setProvidersLoaded(true);
+    }
+
+    async function loadBookings() {
+        const data = await apiRequest("/api/bookings");
+        setBookings(data);
+    }
+
+    useEffect(() => {
+        let isCurrent = true;
+
+        apiRequest("/api/providers")
+            .then(data => {
+                if (!isCurrent) return;
+                setProviders(data);
+                setProvidersLoaded(true);
+            })
+            .catch(error => {
+                if (isCurrent) setLoadError(error.message);
+            });
+
+        apiRequest("/api/bookings")
+            .then(data => {
+                if (isCurrent) setBookings(data);
+            })
+            .catch(error => {
+                if (isCurrent) setLoadError(error.message);
+            });
+
+        return () => {
+            isCurrent = false;
+        };
     }, []);
 
-    function handleAddEvent(newEvent) {
-        fetch("http://localhost:5000/api/events", {
-            method:"POST",
-            headers:{
-                "Content-Type":"application/json"
-            },
-            body: JSON.stringify(newEvent)
-        }).then((response)=>response.json())
-        .then((data)=>{
-            console.log(data);
-            fetch("http://localhost:5000/api/events")
-            .then((response)=>response.json())
-            .then((data)=>{
-                setEvents(data);
-            });
+    async function handleAddProvider(provider) {
+        const result = await apiRequest("/api/providers", {
+            method: "POST",
+            body: JSON.stringify(provider),
         });
+        await loadProviders();
+        return result;
     }
 
-    function handleDeleteEvent(eventId) {
-        fetch(`http://localhost:5000/api/events/${eventId}`, {
-            method: "DELETE"
-        }).then((response)=>response.json())
-        .then((data)=>{
-            console.log(data);
-            fetch("http://localhost:5000/api/events")
-            .then((response)=>response.json())
-            .then((data)=>{
-                setEvents(data);
-            });
+    async function handleCreateBooking(booking) {
+        const result = await apiRequest("/api/bookings", {
+            method: "POST",
+            body: JSON.stringify(booking),
         });
+        await loadBookings();
+        return result;
     }
 
-    function handleEditEvent(eventId){
-        const selectedEvent = events.find(function(event){
-            return event._id === eventId;
-        });
-        setEditingEvent(selectedEvent);
-    }
-
-    function handleUpdateEvent(updatedEvent) {
-        fetch(`http://localhost:5000/api/events/${updatedEvent._id}`, {
+    async function handleUpdateBookingStatus(bookingId, status) {
+        const result = await apiRequest(`/api/bookings/${bookingId}/status`, {
             method: "PUT",
-            headers: {
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(updatedEvent)
-        })
-        .then((response) => response.json())
-        .then((data) => {
-            console.log(data);
-
-            fetch("http://localhost:5000/api/events")
-                .then((response) => response.json())
-                .then((data) => {
-                    setEvents(data);
-                    setEditingEvent(null);
-                });
+            body: JSON.stringify({ status }),
         });
+        await loadBookings();
+        return result;
     }
 
     return (
         <div>
             <Navbar />
+            {loadError && <p className="api-error">Service data is unavailable: {loadError}. Check the backend and MongoDB configuration.</p>}
 
             <Routes>
                 <Route
                     path="/"
                     element={
                         <HomePage
-                            events={events}
-                            onAddEvent={handleAddEvent}
-                            onDeleteEvent={handleDeleteEvent}
-                            onEditEvent={handleEditEvent}
-                            editingEvent={editingEvent}
-                            onUpdateEvent={handleUpdateEvent}
+                            providers={providers}
                         />
                     }
                 />
 
                 <Route
-                    path="/events"
+                    path="/join"
+                    element={<ProviderJoinPage onAddProvider={handleAddProvider} />}
+                />
+
+                <Route
+                    path="/services"
                     element={
                         <EventsPage
-                            events={events}
-                            onDeleteEvent={handleDeleteEvent}
+                            providers={providers}
                         />
                     }
                 />
 
                 <Route
-                    path="/events/:eventId"
+                    path="/providers/:providerId"
                     element={
                         <EventDetailsPage
-                            events={events}
+                            providers={providers}
+                            providersLoaded={providersLoaded}
+                            bookings={bookings}
+                            onCreateBooking={handleCreateBooking}
                         />
                     }
                 />
+
+                <Route
+                    path="/bookings"
+                    element={
+                        <BookingsPage
+                            bookings={bookings}
+                            onUpdateBookingStatus={handleUpdateBookingStatus}
+                        />
+                    }
+                />
+
+                <Route path="/admin" element={<AdminPage />} />
 
                 <Route
                     path="/about"

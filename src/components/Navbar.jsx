@@ -1,21 +1,3 @@
-// function Navbar(){
-//     return(
-//         <nav className="navbar">
-//             <a className="brand-name" href="#home">
-//                 {brandName}
-//             </a>
-//             <div className="nav-links">
-//                 <a href="#home">Home</a>
-//                 <a href="#events">Events</a>
-//                 <a href="#categories">Categories</a>
-//                 <a href="#about">About</a>
-//             </div>
-//         </nav>
-//     );
-// }
-// export default Navbar;
-
-// 
 import { NavLink } from "react-router";
 
 function Navbar() {
@@ -26,7 +8,7 @@ function Navbar() {
   return (
     <nav className="navbar">
       <NavLink className="brand-name" to="/">
-        Campus Connect
+        Local Services
       </NavLink>
 
       <div className="nav-links">
@@ -34,8 +16,20 @@ function Navbar() {
           Home
         </NavLink>
 
-        <NavLink className={getNavLinkClass} to="/events">
-          Events
+        <NavLink className={getNavLinkClass} to="/services">
+          Find services
+        </NavLink>
+
+        <NavLink className={getNavLinkClass} to="/bookings">
+          Bookings
+        </NavLink>
+
+        <NavLink className={getNavLinkClass} to="/join">
+          For providers
+        </NavLink>
+
+        <NavLink className={getNavLinkClass} to="/admin">
+          Admin
         </NavLink>
 
         <NavLink className={getNavLinkClass} to="/about">

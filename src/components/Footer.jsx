@@ -1,10 +1,9 @@
 function Footer(){
     return(
         <footer id="about" className="footer">
-         <h2>Campus Connect</h2>
-         <p>Discover,Participate and connect 
-            with your campus community </p>
-         <p>Built with React Components and JSX</p>
+         <h2>Local Services</h2>
+         <p>Find and book trusted professionals in your area.</p>
+         <p>Electricians · Tutors · Cleaners · And more</p>
         </footer>
     );
 }

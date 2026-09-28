@@ -1,116 +1,68 @@
 import { useState } from "react";
 import EventCard from "./EventCard";
 
-function EventSection({
-  events,
-  onDeleteEvent,
-  onEditEvent,
-}) {
-  const [searchText, setSearchText] =
-    useState("");
+function EventSection({ providers, title = "Find a local professional" }) {
+  const [searchText, setSearchText] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
+  const [locationText, setLocationText] = useState("");
 
-  const [selectedCategory, setSelectedCategory] =
-    useState("All");
-
-  const filteredEvents = events.filter(function (
-    event
-  ) {
-    const matchesSearch = event.title
-      .toLowerCase()
-      .includes(searchText.toLowerCase());
-
-    const matchesCategory =
-      selectedCategory === "All" ||
-      event.category === selectedCategory;
-
-    return matchesSearch && matchesCategory;
+  const filteredProviders = providers.filter(provider => {
+    const search = searchText.toLowerCase();
+    const location = locationText.toLowerCase();
+    const matchesSearch = [provider.name, provider.category, ...(provider.services || [])]
+      .some(value => value.toLowerCase().includes(search));
+    const matchesCategory = selectedCategory === "All" || provider.category === selectedCategory;
+    const matchesLocation = provider.location.toLowerCase().includes(location);
+    return matchesSearch && matchesCategory && matchesLocation;
   });
 
   return (
-    <section
-      id="events"
-      className="events-section"
-    >
+    <section id="services" className="providers-section">
       <div className="section-heading">
         <div>
-          <p className="section-label">
-            Upcoming Activities
-          </p>
-
-          <h2>Explore Campus Events</h2>
+          <p className="section-label">Verified local professionals</p>
+          <h2>{title}</h2>
         </div>
-
-        <p>
-          {filteredEvents.length} events shown
-        </p>
+        <p>{filteredProviders.length} providers</p>
       </div>
 
       <div className="search-filter-bar">
         <input
-          type="text"
+          type="search"
+          aria-label="Search providers and services"
           value={searchText}
-          onChange={function (event) {
-            setSearchText(event.target.value);
-          }}
-          placeholder="Search by event title"
+          onChange={event => setSearchText(event.target.value)}
+          placeholder="Electrician, tutor, cleaner..."
         />
-
         <select
+          aria-label="Filter by service category"
           value={selectedCategory}
-          onChange={function (event) {
-            setSelectedCategory(
-              event.target.value
-            );
-          }}
+          onChange={event => setSelectedCategory(event.target.value)}
         >
-          <option value="All">
-            All Categories
-          </option>
-
-          <option value="Technology">
-            Technology
-          </option>
-
-          <option value="Sports">
-            Sports
-          </option>
-
-          <option value="Cultural">
-            Cultural
-          </option>
-
-          <option value="Club">
-            Club
-          </option>
-
-          <option value="Workshop">
-            Workshop
-          </option>
+          <option value="All">All services</option>
+          <option>Electrician</option>
+          <option>Tutor</option>
+          <option>Cleaner</option>
+          <option>Plumber</option>
+          <option>Carpenter</option>
+          <option>Other</option>
         </select>
+        <input
+          type="search"
+          aria-label="Filter by location"
+          value={locationText}
+          onChange={event => setLocationText(event.target.value)}
+          placeholder="City or neighborhood"
+        />
       </div>
 
-      {filteredEvents.length === 0 ? (
-        <p className="empty-message">
-          No matching events found.
-        </p>
+      {filteredProviders.length === 0 ? (
+        <p className="empty-message">No verified providers match those filters yet.</p>
       ) : (
-        <div className="event-grid">
-          {filteredEvents.map(function (event) {
-            return (
-              <EventCard
-                key={event._id}
-                _id={event._id}
-                title={event.title}
-                category={event.category}
-                date={event.date}
-                time={event.time}
-                location={event.location}
-                description={event.description}
-                onDeleteEvent={onDeleteEvent}
-                onEditEvent={onEditEvent}
-              />
-            );
-          })}
+        <div className="provider-grid">
+          {filteredProviders.map(provider => (
+            <EventCard key={provider._id} provider={provider} />
+          ))}
         </div>
       )}
     </section>
