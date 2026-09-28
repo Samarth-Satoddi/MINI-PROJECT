@@ -37,21 +37,6 @@ app.get("/", (req, res)=>{
         status: databaseConnected ? "ready" : "database_disconnected"
     });
 })
-
-function requireAdmin(req, res, next) {
-    const adminApiKey = process.env.ADMIN_API_KEY;
-
-    if (!adminApiKey) {
-        return res.status(503).json({ message: "Admin API is not configured" });
-    }
-
-    if (req.get("x-admin-key") !== adminApiKey) {
-        return res.status(401).json({ message: "Unauthorized" });
-    }
-
-    next();
-}
-
 app.get("/api/providers", async (req, res)=>{
     const filters = { verified: true };
 
@@ -100,12 +85,12 @@ app.get("/api/providers/:id", async (req, res)=>{
 app.post("/api/providers", async (req, res)=>{
     const provider = await Provider.create({
         ...req.body,
-        verified: false,
-        verificationStatus: "pending"
+        verified: true,
+        verificationStatus: "approved"
     });
 
     res.json({
-        message: "Provider profile submitted for verification",
+        message: "Provider profile created successfully",
         provider
     });
 });
@@ -313,32 +298,6 @@ app.put("/api/bookings/:id/status", async (req, res)=>{
     }
 
     res.json({ message: "Booking Status Updated Successfully", booking });
-});
-
-app.get("/api/admin/providers", requireAdmin, async (req, res)=>{
-    const status = req.query.status || "pending";
-    const providers = await Provider.find({ verificationStatus: status });
-    res.json(providers);
-});
-
-app.put("/api/admin/providers/:id/verification", requireAdmin, async (req, res)=>{
-    const { status } = req.body;
-
-    if (!["approved", "rejected"].includes(status)) {
-        return res.status(400).json({ message: "Status must be approved or rejected" });
-    }
-
-    const provider = await Provider.findByIdAndUpdate(
-        req.params.id,
-        { verificationStatus: status, verified: status === "approved" },
-        { new: true, runValidators: true }
-    );
-
-    if (!provider) {
-        return res.status(404).json({ message: "Provider Not Found" });
-    }
-
-    res.json({ message: "Provider Verification Updated", provider });
 });
 
 app.listen(5000, ()=>{

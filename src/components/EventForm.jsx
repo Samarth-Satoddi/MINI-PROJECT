@@ -60,7 +60,7 @@ function EventForm({ onAddProvider }) {
       });
       setFormData(emptyProvider);
       setAvailability([{ date: "", startTime: "", endTime: "" }]);
-      setMessage("Profile submitted. It will appear after admin verification.");
+      setMessage("Profile published successfully! You are now listed in the directory.");
     } catch (error) {
       setFormError(error.message);
     }

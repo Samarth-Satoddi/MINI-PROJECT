@@ -11,7 +11,6 @@ import EventsPage from "./pages/EventsPage";
 import EventDetailsPage from "./pages/EventDetailsPage";
 import AboutPage from "./pages/AboutPage";
 import BookingsPage from "./pages/BookingsPage";
-import AdminPage from "./pages/AdminPage";
 import ProviderJoinPage from "./pages/ProviderJoinPage";
 
 const API_URL = "http://localhost:5000";
@@ -153,8 +152,6 @@ function App() {
                         />
                     }
                 />
-
-                <Route path="/admin" element={<AdminPage />} />
 
                 <Route
                     path="/about"

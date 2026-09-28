@@ -28,10 +28,6 @@ function Navbar() {
           For providers
         </NavLink>
 
-        <NavLink className={getNavLinkClass} to="/admin">
-          Admin
-        </NavLink>
-
         <NavLink className={getNavLinkClass} to="/about">
           About
         </NavLink>
