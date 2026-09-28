@@ -105,10 +105,13 @@ app.put("/api/providers/:id", async (req, res)=>{
             .filter(field => req.body[field] !== undefined)
             .map(field => [field, req.body[field]])
     );
+    if (Array.isArray(req.body.availability)) {
+        updates.availability = req.body.availability;
+    }
     const provider = await Provider.findByIdAndUpdate(
         req.params.id,
         updates,
-        { new: true, runValidators: true }
+        { returnDocument: 'after', runValidators: true }
     );
 
     if (!provider) {
@@ -120,6 +123,24 @@ app.put("/api/providers/:id", async (req, res)=>{
     res.json({
         message: "Provider Profile Updated Successfully",
         provider
+    });
+});
+
+app.delete("/api/providers/:id", async (req, res) => {
+    const provider = await Provider.findByIdAndDelete(req.params.id);
+
+    if (!provider) {
+        return res.status(404).json({
+            message: "Provider Not Found"
+        });
+    }
+
+    await Booking.deleteMany({ provider: req.params.id });
+    await Review.deleteMany({ provider: req.params.id });
+
+    res.json({
+        message: "Provider Deleted Successfully",
+        id: req.params.id
     });
 });
 

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const emptyProvider = {
   name: "",
@@ -11,13 +11,43 @@ const emptyProvider = {
   description: "",
 };
 
-function EventForm({ onAddProvider }) {
+function EventForm({ onAddProvider, onUpdateProvider, editingProvider, onCancelEdit }) {
   const [formData, setFormData] = useState(emptyProvider);
   const [availability, setAvailability] = useState([
     { date: "", startTime: "", endTime: "" },
   ]);
   const [formError, setFormError] = useState("");
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    if (editingProvider) {
+      setFormData({
+        name: editingProvider.name || "",
+        category: editingProvider.category || "",
+        location: editingProvider.location || "",
+        hourlyRate: editingProvider.hourlyRate ?? "",
+        phone: editingProvider.phone || "",
+        email: editingProvider.email || "",
+        services: Array.isArray(editingProvider.services) ? editingProvider.services.join(", ") : "",
+        description: editingProvider.description || "",
+      });
+      if (Array.isArray(editingProvider.availability) && editingProvider.availability.length > 0) {
+        setAvailability(editingProvider.availability.map(slot => ({
+          date: slot.date || "",
+          startTime: slot.startTime || "",
+          endTime: slot.endTime || "",
+          isAvailable: slot.isAvailable !== undefined ? slot.isAvailable : true,
+        })));
+      } else {
+        setAvailability([{ date: "", startTime: "", endTime: "" }]);
+      }
+      setFormError("");
+      setMessage("");
+    } else {
+      setFormData(emptyProvider);
+      setAvailability([{ date: "", startTime: "", endTime: "" }]);
+    }
+  }, [editingProvider]);
 
   function handleChange(event) {
     setFormData({ ...formData, [event.target.name]: event.target.value });
@@ -52,24 +82,31 @@ function EventForm({ onAddProvider }) {
     }
 
     try {
-      await onAddProvider({
+      const payload = {
         ...formData,
         hourlyRate: Number(formData.hourlyRate),
         services: formData.services.split(",").map(service => service.trim()).filter(Boolean),
         availability,
-      });
-      setFormData(emptyProvider);
-      setAvailability([{ date: "", startTime: "", endTime: "" }]);
-      setMessage("Profile published successfully! You are now listed in the directory.");
+      };
+
+      if (editingProvider && onUpdateProvider) {
+        await onUpdateProvider(editingProvider._id, payload);
+        setMessage("Profile updated successfully!");
+      } else {
+        await onAddProvider(payload);
+        setFormData(emptyProvider);
+        setAvailability([{ date: "", startTime: "", endTime: "" }]);
+        setMessage("Profile published successfully! You are now listed in the directory.");
+      }
     } catch (error) {
       setFormError(error.message);
     }
   }
 
   return (
-    <section className="provider-form-section">
+    <section className="provider-form-section" id="provider-form">
       <p className="section-label">For local professionals</p>
-      <h2>Create a provider profile</h2>
+      <h2>{editingProvider ? `Edit: ${editingProvider.name}` : "Create a provider profile"}</h2>
 
       <form className="provider-form" onSubmit={handleSubmit}>
         <div className="form-group">
@@ -96,7 +133,7 @@ function EventForm({ onAddProvider }) {
         </div>
 
         <div className="form-group">
-          <label htmlFor="hourlyRate">Hourly rate</label>
+          <label htmlFor="hourlyRate">Hourly rate ($)</label>
           <input id="hourlyRate" name="hourlyRate" type="number" min="0" value={formData.hourlyRate} onChange={handleChange} required />
         </div>
 
@@ -111,7 +148,7 @@ function EventForm({ onAddProvider }) {
         </div>
 
         <div className="form-group full-width">
-          <label htmlFor="services">Services offered</label>
+          <label htmlFor="services">Services offered (comma separated)</label>
           <input id="services" name="services" value={formData.services} onChange={handleChange} placeholder="Repairs, installation, maintenance" />
         </div>
 
@@ -148,7 +185,17 @@ function EventForm({ onAddProvider }) {
 
         {formError && <p className="form-error">{formError}</p>}
         {message && <p className="form-success">{message}</p>}
-        <button className="submit-button" type="submit">Submit provider profile</button>
+
+        <div className="provider-form-actions">
+          <button className="submit-button" type="submit">
+            {editingProvider ? "Save changes" : "Submit provider profile"}
+          </button>
+          {editingProvider && (
+            <button className="secondary-button" type="button" onClick={onCancelEdit}>
+              Cancel edit
+            </button>
+          )}
+        </div>
       </form>
     </section>
   );

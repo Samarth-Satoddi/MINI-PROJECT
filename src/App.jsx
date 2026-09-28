@@ -84,6 +84,23 @@ function App() {
         return result;
     }
 
+    async function handleUpdateProvider(providerId, updatedData) {
+        const result = await apiRequest(`/api/providers/${providerId}`, {
+            method: "PUT",
+            body: JSON.stringify(updatedData),
+        });
+        await loadProviders();
+        return result;
+    }
+
+    async function handleDeleteProvider(providerId) {
+        const result = await apiRequest(`/api/providers/${providerId}`, {
+            method: "DELETE",
+        });
+        await loadProviders();
+        return result;
+    }
+
     async function handleCreateBooking(booking) {
         const result = await apiRequest("/api/bookings", {
             method: "POST",
@@ -119,7 +136,14 @@ function App() {
 
                 <Route
                     path="/join"
-                    element={<ProviderJoinPage onAddProvider={handleAddProvider} />}
+                    element={
+                        <ProviderJoinPage
+                            providers={providers}
+                            onAddProvider={handleAddProvider}
+                            onUpdateProvider={handleUpdateProvider}
+                            onDeleteProvider={handleDeleteProvider}
+                        />
+                    }
                 />
 
                 <Route
