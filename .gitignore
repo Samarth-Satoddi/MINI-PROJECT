@@ -24,3 +24,11 @@ dist-ssr
 *.sw?
 
 .env
+.env.local
+.env.development.local
+.env.test.local
+.env.production
+.env.production.local
+backend/.env
+backend/.env.local
+backend/.env.production

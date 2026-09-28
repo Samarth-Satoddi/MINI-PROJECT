@@ -14,25 +14,77 @@ const Booking = require("./models/Booking");
 const Review = require("./models/Review");
 const { requireAuth, requireRole } = require("./middleware/auth");
 
-app.use(cors());
+const defaultAllowedOrigins = [
+    "http://localhost:5173",
+    "http://localhost:5174",
+    "http://localhost:3000",
+];
+
+const getAllowedOrigins = () => {
+    const origins = [...defaultAllowedOrigins];
+    if (process.env.FRONTEND_URL) {
+        process.env.FRONTEND_URL.split(",").forEach(url => {
+            const cleanUrl = url.trim().replace(/\/$/, "");
+            if (cleanUrl && !origins.includes(cleanUrl)) {
+                origins.push(cleanUrl);
+            }
+        });
+    }
+    return origins;
+};
+
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        const allowed = getAllowedOrigins();
+        if (allowed.includes(origin) || allowed.includes("*")) {
+            return callback(null, true);
+        }
+        if (origin.endsWith(".vercel.app")) {
+            return callback(null, true);
+        }
+        return callback(null, false);
+    },
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization", "x-admin-key"]
+}));
+
 app.use(express.json());
 dns.setServers(['8.8.8.8']);
 
-mongoose.connect(process.env.MONGODB_URI)
-.then(()=>{
-    console.log("MongoDB Connected Successfully!");
-}).catch((error)=>{
-    console.log("MongoDB Connection Error: ", error);
-});
+let cachedDbPromise = null;
 
-app.use("/api", (req, res, next)=>{
-    if (mongoose.connection.readyState !== 1) {
+async function connectDB() {
+    if (mongoose.connection.readyState === 1) {
+        return mongoose.connection;
+    }
+    if (!cachedDbPromise) {
+        cachedDbPromise = mongoose.connect(process.env.MONGODB_URI, {
+            serverSelectionTimeoutMS: 5000,
+        }).then((m) => {
+            console.log("MongoDB Connected Successfully!");
+            return m;
+        }).catch((err) => {
+            console.error("MongoDB Connection Error: ", err.message);
+            cachedDbPromise = null;
+            throw err;
+        });
+    }
+    return cachedDbPromise;
+}
+
+connectDB().catch(err => console.log("Initial DB connection warning:", err.message));
+
+app.use("/api", async (req, res, next) => {
+    try {
+        await connectDB();
+        next();
+    } catch (error) {
         return res.status(503).json({
             message: "Database is not connected"
         });
     }
-
-    next();
 });
 
 function requireAdmin(req, res, next) {
@@ -762,6 +814,11 @@ app.put("/api/admin/providers/:id/verification", requireAdmin, async (req, res)=
     res.json({ message: "Provider Verification Updated", provider });
 });
 
-app.listen(5000, ()=>{
-    console.log("Server is running on port 5000");
-});
+if (!process.env.VERCEL) {
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+    });
+}
+
+module.exports = app;

@@ -21,7 +21,7 @@ import ProviderDashboard from "./pages/ProviderDashboard";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
 
-const API_URL = "http://localhost:5000";
+import { API_URL } from "./config/api";
 
 async function apiRequest(path, options = {}) {
     const token = localStorage.getItem("token");

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import { useAuth } from "../context/AuthContext";
 
-const API_URL = "http://localhost:5000";
+import { API_URL } from "../config/api";
 
 function ProviderDashboard() {
   const { token, user, setProviderProfile } = useAuth();

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useLocation } from "react-router";
 import { useAuth } from "../context/AuthContext";
 
-const API_URL = "http://localhost:5000";
+import { API_URL } from "../config/api";
 
 function CustomerRegister() {
   const [name, setName] = useState("");

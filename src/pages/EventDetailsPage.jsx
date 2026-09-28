@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams, useNavigate } from "react-router";
 import { useAuth } from "../context/AuthContext";
 
-const API_URL = "http://localhost:5000";
+import { API_URL } from "../config/api";
 
 function EventDetailsPage({ providers, providersLoaded, bookings, onCreateBooking }) {
     const { providerId } = useParams();
