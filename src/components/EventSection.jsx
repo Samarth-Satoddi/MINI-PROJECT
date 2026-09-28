@@ -6,13 +6,20 @@ function EventSection({ providers, title = "Find a local professional" }) {
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [locationText, setLocationText] = useState("");
 
-  const filteredProviders = providers.filter(provider => {
-    const search = searchText.toLowerCase();
-    const location = locationText.toLowerCase();
-    const matchesSearch = [provider.name, provider.category, ...(provider.services || [])]
-      .some(value => value.toLowerCase().includes(search));
+  const filteredProviders = (providers || []).filter(provider => {
+    if (!provider) return false;
+    const search = (searchText || "").toLowerCase();
+    const location = (locationText || "").toLowerCase();
+    const searchableValues = [
+      provider.name,
+      provider.category,
+      ...(Array.isArray(provider.services) ? provider.services : [])
+    ].filter(Boolean);
+    const matchesSearch = !search || searchableValues.some(value =>
+      String(value).toLowerCase().includes(search)
+    );
     const matchesCategory = selectedCategory === "All" || provider.category === selectedCategory;
-    const matchesLocation = provider.location.toLowerCase().includes(location);
+    const matchesLocation = !location || (provider.location && String(provider.location).toLowerCase().includes(location));
     return matchesSearch && matchesCategory && matchesLocation;
   });
 

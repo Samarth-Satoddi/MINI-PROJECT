@@ -14,7 +14,7 @@ function EventCard({ provider }) {
         <p><strong>Rate:</strong> ${provider.hourlyRate}/hour</p>
         <p>
           <strong>Rating:</strong>{" "}
-          {provider.reviewCount > 0
+          {provider?.reviewCount > 0 && typeof provider?.averageRating === "number"
             ? `${provider.averageRating.toFixed(1)} / 5 (${provider.reviewCount})`
             : "No reviews yet"}
         </p>

@@ -128,7 +128,7 @@ function EventDetailsPage({ providers, providersLoaded, bookings, onCreateBookin
             <div className="details-box">
                 <p><strong>Location:</strong> {provider.location}</p>
                 <p><strong>Hourly rate:</strong> ${provider.hourlyRate}</p>
-                <p><strong>Rating:</strong> {provider.reviewCount ? `${provider.averageRating.toFixed(1)} / 5 from ${provider.reviewCount} reviews` : "No reviews yet"}</p>
+                <p><strong>Rating:</strong> {provider.reviewCount && typeof provider.averageRating === "number" ? `${provider.averageRating.toFixed(1)} / 5 from ${provider.reviewCount} reviews` : "No reviews yet"}</p>
                 {provider.phone && <p><strong>Phone:</strong> {provider.phone}</p>}
                 {provider.email && <p><strong>Email:</strong> {provider.email}</p>}
                 {services.filter(Boolean).length > 0 && <p><strong>Services:</strong> {services.filter(Boolean).join(", ")}</p>}
