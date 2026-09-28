@@ -175,8 +175,8 @@ function EventDetailsPage({ providers, providersLoaded, bookings, onCreateBookin
                     </div>
                     <div className="form-group">
                         <label htmlFor="bookingSlot">Available time</label>
-                        <select id="bookingSlot" value={selectedSlot} onChange={event => setSelectedSlot(event.target.value)} required>
-                            <option value="">Choose a time</option>
+                        <select id="bookingSlot" value={selectedSlot} onChange={event => setSelectedSlot(event.target.value)} required disabled={availableSlots.length === 0}>
+                            <option value="">{availableSlots.length === 0 ? "No available times (all booked)" : "Choose a time"}</option>
                             {availableSlots.map((slot, index) => {
                                 const slotValue = `${slot.date}|${slot.startTime}|${slot.endTime}`;
                                 return <option key={`${slotValue}-${index}`} value={slotValue}>{slot.date}, {slot.startTime}–{slot.endTime}</option>;
