@@ -102,7 +102,7 @@ function ProviderJoinPage({
                                         className="edit-provider-btn"
                                         onClick={() => handleStartEdit(provider)}
                                     >
-                                        ✏️ Edit
+                                        ✏️ Update Provider
                                     </button>
                                     <button
                                         type="button"

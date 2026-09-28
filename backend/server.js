@@ -289,6 +289,48 @@ app.get("/api/providers/me", requireAuth, requireRole("provider"), async (req, r
     }
 });
 
+app.put("/api/providers/me", requireAuth, requireRole("provider"), async (req, res) => {
+    try {
+        let provider = await Provider.findOne({ userId: req.user.userId });
+        if (!provider) {
+            const user = await User.findById(req.user.userId);
+            if (user) {
+                provider = await Provider.findOne({ email: user.email });
+                if (provider && !provider.userId) {
+                    provider.userId = user._id;
+                    await provider.save();
+                }
+            }
+        }
+
+        if (!provider) {
+            return res.status(404).json({ message: "No provider profile linked to this user." });
+        }
+
+        const allowedFields = [
+            "name", "category", "description", "location", "phone", "email",
+            "hourlyRate", "services"
+        ];
+        allowedFields.forEach(field => {
+            if (req.body[field] !== undefined) {
+                provider[field] = req.body[field];
+            }
+        });
+
+        if (Array.isArray(req.body.availability)) {
+            provider.availability = req.body.availability;
+        }
+
+        const updated = await provider.save();
+        return res.json({
+            message: "Provider Profile Updated Successfully",
+            provider: updated
+        });
+    } catch (error) {
+        return res.status(500).json({ message: error.message || "Failed to update profile." });
+    }
+});
+
 app.get("/api/providers/:id", async (req, res)=>{
     const provider = await Provider.findOne({ _id: req.params.id, verified: true });
 
@@ -323,6 +365,10 @@ app.put("/api/providers/:id", requireAuth, requireRole("provider"), async (req, 
 
     if (provider.userId && provider.userId.toString() !== req.user.userId) {
         return res.status(403).json({ message: "Forbidden. You can only update your own provider profile." });
+    }
+
+    if (!provider.userId) {
+        provider.userId = req.user.userId;
     }
 
     const allowedFields = [
@@ -596,6 +642,94 @@ app.put("/api/bookings/:id/status", requireAuth, async (req, res)=>{
     }
 
     res.json({ message: "Booking Status Updated Successfully", booking });
+});
+
+app.put("/api/bookings/:id", requireAuth, async (req, res) => {
+    try {
+        const booking = await Booking.findById(req.params.id);
+        if (!booking) {
+            return res.status(404).json({ message: "Booking Not Found" });
+        }
+
+        if (req.user.role === "customer") {
+            if (!booking.customer || booking.customer.toString() !== req.user.userId) {
+                return res.status(403).json({ message: "Forbidden. You can only update your own bookings." });
+            }
+        } else if (req.user.role === "provider") {
+            const provider = await Provider.findOne({ userId: req.user.userId });
+            if (!provider || booking.provider.toString() !== provider._id.toString()) {
+                return res.status(403).json({ message: "Forbidden. You can only update bookings for your own profile." });
+            }
+        }
+
+        if (booking.status === "cancelled" || booking.status === "completed") {
+            return res.status(400).json({ message: `Cannot update a ${booking.status} booking.` });
+        }
+
+        const { date, startTime, endTime, notes, customerName } = req.body;
+
+        const isSlotChanged = (date && date !== booking.date) ||
+                              (startTime && startTime !== booking.startTime) ||
+                              (endTime && endTime !== booking.endTime);
+
+        if (isSlotChanged) {
+            const targetDate = date || booking.date;
+            const targetStartTime = startTime || booking.startTime;
+            const targetEndTime = endTime || booking.endTime;
+
+            if (targetStartTime >= targetEndTime) {
+                return res.status(400).json({ message: "End time must be after start time." });
+            }
+
+            const conflictingBooking = await Booking.findOne({
+                _id: { $ne: booking._id },
+                provider: booking.provider,
+                date: targetDate,
+                status: { $in: ["pending", "confirmed"] },
+                startTime: { $lt: targetEndTime },
+                endTime: { $gt: targetStartTime }
+            });
+
+            if (conflictingBooking) {
+                return res.status(409).json({ message: "This appointment slot is already booked." });
+            }
+
+            // Update availability slots on provider
+            const provider = await Provider.findById(booking.provider);
+            const hasNewSlot = provider?.availability?.some(s =>
+                s.date === targetDate && s.startTime === targetStartTime && s.endTime === targetEndTime
+            );
+
+            if (hasNewSlot) {
+                await Provider.updateOne(
+                    { _id: booking.provider, "availability.date": targetDate, "availability.startTime": targetStartTime, "availability.endTime": targetEndTime },
+                    { $set: { "availability.$.isAvailable": false } }
+                );
+            }
+
+            await Provider.updateOne(
+                { _id: booking.provider, "availability.date": booking.date, "availability.startTime": booking.startTime, "availability.endTime": booking.endTime },
+                { $set: { "availability.$.isAvailable": true } }
+            );
+
+            booking.date = targetDate;
+            booking.startTime = targetStartTime;
+            booking.endTime = targetEndTime;
+        }
+
+        if (notes !== undefined) booking.notes = notes;
+        if (customerName) booking.customerName = customerName;
+
+        await booking.save();
+        const populatedBooking = await Booking.findById(booking._id).populate("provider", "name category location");
+
+        res.json({
+            message: "Booking Updated Successfully",
+            booking: populatedBooking || booking
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message || "Failed to update booking" });
+    }
 });
 
 // ==========================================

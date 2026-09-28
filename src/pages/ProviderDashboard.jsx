@@ -5,12 +5,25 @@ import { useAuth } from "../context/AuthContext";
 const API_URL = "http://localhost:5000";
 
 function ProviderDashboard() {
-  const { token, user } = useAuth();
+  const { token, user, setProviderProfile } = useAuth();
   const [provider, setProvider] = useState(null);
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+
+  // Edit / Update Profile State
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({
+    name: "",
+    category: "",
+    location: "",
+    hourlyRate: "",
+    phone: "",
+    email: "",
+    services: "",
+    description: "",
+  });
 
   const [availabilitySlots, setAvailabilitySlots] = useState([]);
   const [newSlot, setNewSlot] = useState({ date: "", startTime: "", endTime: "" });
@@ -39,6 +52,16 @@ function ProviderDashboard() {
       if (provRes.ok) {
         setProvider(provData);
         setAvailabilitySlots(provData.availability || []);
+        setProfileForm({
+          name: provData.name || "",
+          category: provData.category || "",
+          location: provData.location || "",
+          hourlyRate: provData.hourlyRate ?? "",
+          phone: provData.phone || "",
+          email: provData.email || "",
+          services: Array.isArray(provData.services) ? provData.services.join(", ") : "",
+          description: provData.description || "",
+        });
       } else {
         setError(provData.message || "Could not load provider profile.");
       }
@@ -50,6 +73,50 @@ function ProviderDashboard() {
       setError(err.message || "Failed to load dashboard.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleUpdateProfileSubmit(e) {
+    e.preventDefault();
+    setError("");
+    setMessage("");
+
+    try {
+      const payload = {
+        name: profileForm.name,
+        category: profileForm.category,
+        location: profileForm.location,
+        hourlyRate: Number(profileForm.hourlyRate),
+        phone: profileForm.phone,
+        email: profileForm.email,
+        description: profileForm.description,
+        services: typeof profileForm.services === "string"
+          ? profileForm.services.split(",").map(s => s.trim()).filter(Boolean)
+          : profileForm.services,
+      };
+
+      const res = await fetch(`${API_URL}/api/providers/me`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || "Failed to update profile.");
+      }
+
+      setProvider(data.provider);
+      if (setProviderProfile) {
+        setProviderProfile(data.provider);
+      }
+      setIsEditingProfile(false);
+      setMessage("Profile updated successfully!");
+    } catch (err) {
+      setError(err.message);
     }
   }
 
@@ -147,28 +214,148 @@ function ProviderDashboard() {
 
       {provider && (
         <section className="profile-section">
-          <div className="manage-provider-header">
+          <div className="manage-provider-header" style={{ alignItems: "flex-start" }}>
             <div>
               <p className="section-label">Listing Status</p>
               <h2>{provider.name}</h2>
               <p className="manage-location">📍 {provider.location} · <strong>Category:</strong> {provider.category}</p>
             </div>
-            <div>
+            <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
               <span className={`provider-category ${provider.verified ? "verified-tag" : "pending-tag"}`}>
                 {provider.verificationStatus === "approved" ? "Verified & Listed" : "Pending Verification"}
               </span>
+              <button
+                type="button"
+                className="edit-provider-btn"
+                style={{ padding: "8px 14px", width: "auto" }}
+                onClick={() => setIsEditingProfile(!isEditingProfile)}
+              >
+                {isEditingProfile ? "✕ Cancel Edit" : "✏️ Update Profile"}
+              </button>
             </div>
           </div>
 
-          <div className="provider-details">
-            <p><strong>Hourly Rate:</strong> ${provider.hourlyRate}/hr</p>
-            <p><strong>Phone:</strong> {provider.phone || "Not set"}</p>
-            <p><strong>Email:</strong> {provider.email}</p>
-            <p><strong>Services:</strong> {provider.services?.join(", ") || "General"}</p>
-          </div>
+          {/* UPDATE PROFILE FORM */}
+          {isEditingProfile ? (
+            <div className="provider-form-section" style={{ marginTop: "20px", paddingTop: "20px" }}>
+              <p className="section-label">Edit Account Information</p>
+              <h3>Update Provider Profile</h3>
+              <form className="provider-form" onSubmit={handleUpdateProfileSubmit}>
+                <div className="form-group">
+                  <label htmlFor="edit-name">Provider Name</label>
+                  <input
+                    id="edit-name"
+                    type="text"
+                    required
+                    value={profileForm.name}
+                    onChange={e => setProfileForm({ ...profileForm, name: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="edit-category">Service Category</label>
+                  <select
+                    id="edit-category"
+                    required
+                    value={profileForm.category}
+                    onChange={e => setProfileForm({ ...profileForm, category: e.target.value })}
+                  >
+                    <option value="">Select category</option>
+                    <option>Electrician</option>
+                    <option>Plumber</option>
+                    <option>Tutor</option>
+                    <option>Cleaner</option>
+                    <option>Carpenter</option>
+                    <option>Other</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="edit-location">Location (City, State)</label>
+                  <input
+                    id="edit-location"
+                    type="text"
+                    required
+                    value={profileForm.location}
+                    onChange={e => setProfileForm({ ...profileForm, location: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="edit-hourlyRate">Hourly Rate ($)</label>
+                  <input
+                    id="edit-hourlyRate"
+                    type="number"
+                    min="0"
+                    required
+                    value={profileForm.hourlyRate}
+                    onChange={e => setProfileForm({ ...profileForm, hourlyRate: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="edit-phone">Phone Number</label>
+                  <input
+                    id="edit-phone"
+                    type="tel"
+                    value={profileForm.phone}
+                    onChange={e => setProfileForm({ ...profileForm, phone: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label htmlFor="edit-email">Email Address</label>
+                  <input
+                    id="edit-email"
+                    type="email"
+                    value={profileForm.email}
+                    onChange={e => setProfileForm({ ...profileForm, email: e.target.value })}
+                  />
+                </div>
+
+                <div className="form-group full-width">
+                  <label htmlFor="edit-services">Services Offered (comma separated)</label>
+                  <input
+                    id="edit-services"
+                    type="text"
+                    value={profileForm.services}
+                    onChange={e => setProfileForm({ ...profileForm, services: e.target.value })}
+                    placeholder="E.g. Wiring, Fan Repair, MCB Replacement"
+                  />
+                </div>
+
+                <div className="form-group full-width">
+                  <label htmlFor="edit-description">Profile Bio / Description</label>
+                  <textarea
+                    id="edit-description"
+                    rows="3"
+                    value={profileForm.description}
+                    onChange={e => setProfileForm({ ...profileForm, description: e.target.value })}
+                  />
+                </div>
+
+                <div className="provider-form-actions" style={{ gridColumn: "1 / -1", display: "flex", gap: "10px" }}>
+                  <button className="submit-button" type="submit">
+                    💾 Save & Update Profile
+                  </button>
+                  <button className="secondary-button" type="button" onClick={() => setIsEditingProfile(false)}>
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            </div>
+          ) : (
+            <div className="provider-details">
+              <p><strong>Hourly Rate:</strong> ${provider.hourlyRate}/hr</p>
+              <p><strong>Phone:</strong> {provider.phone || "Not set"}</p>
+              <p><strong>Email:</strong> {provider.email}</p>
+              <p><strong>Services:</strong> {provider.services?.join(", ") || "General"}</p>
+              {provider.description && <p><strong>Bio:</strong> {provider.description}</p>}
+            </div>
+          )}
 
           {provider.verificationStatus === "pending" && (
-            <p className="pending-notice">
+            <p className="pending-notice" style={{ marginTop: "14px" }}>
               ℹ️ Your profile is submitted and pending admin verification before appearing publicly in search.
             </p>
           )}

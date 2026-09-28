@@ -144,6 +144,15 @@ function App() {
         return result;
     }
 
+    async function handleUpdateBooking(bookingId, updateData) {
+        const result = await apiRequest(`/api/bookings/${bookingId}`, {
+            method: "PUT",
+            body: JSON.stringify(updateData),
+        });
+        await loadBookings();
+        return result;
+    }
+
     return (
         <div>
             <Navbar />
@@ -191,6 +200,7 @@ function App() {
                         <ProtectedRoute allowedRole="customer">
                             <BookingsPage
                                 bookings={bookings}
+                                onUpdateBooking={handleUpdateBooking}
                                 onUpdateBookingStatus={handleUpdateBookingStatus}
                                 onRefreshBookings={loadBookings}
                             />

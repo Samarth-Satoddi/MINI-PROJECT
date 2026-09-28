@@ -106,7 +106,7 @@ function EventForm({ onAddProvider, onUpdateProvider, editingProvider, onCancelE
   return (
     <section className="provider-form-section" id="provider-form">
       <p className="section-label">For local professionals</p>
-      <h2>{editingProvider ? `Edit: ${editingProvider.name}` : "Create a provider profile"}</h2>
+      <h2>{editingProvider ? `Update Provider: ${editingProvider.name}` : "Create a provider profile"}</h2>
 
       <form className="provider-form" onSubmit={handleSubmit}>
         <div className="form-group">
@@ -188,7 +188,7 @@ function EventForm({ onAddProvider, onUpdateProvider, editingProvider, onCancelE
 
         <div className="provider-form-actions">
           <button className="submit-button" type="submit">
-            {editingProvider ? "Save changes" : "Submit provider profile"}
+            {editingProvider ? "Update Provider" : "Submit provider profile"}
           </button>
           {editingProvider && (
             <button className="secondary-button" type="button" onClick={onCancelEdit}>
