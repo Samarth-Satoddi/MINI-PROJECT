@@ -1,10 +1,14 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useParams, useNavigate } from "react-router";
+import { useAuth } from "../context/AuthContext";
 
 const API_URL = "http://localhost:5000";
 
 function EventDetailsPage({ providers, providersLoaded, bookings, onCreateBooking }) {
     const { providerId } = useParams();
+    const navigate = useNavigate();
+    const { isAuthenticated, isCustomer, token, user } = useAuth();
+
     const provider = providers.find(item => item._id === providerId);
     const [availability, setAvailability] = useState([]);
     const [reviews, setReviews] = useState([]);
@@ -25,6 +29,20 @@ function EventDetailsPage({ providers, providersLoaded, bookings, onCreateBookin
     const [message, setMessage] = useState("");
 
     useEffect(() => {
+        if (user) {
+            setBookingForm(prev => ({
+                ...prev,
+                customerName: prev.customerName || user.name || "",
+                customerEmail: prev.customerEmail || user.email || ""
+            }));
+            setReviewForm(prev => ({
+                ...prev,
+                reviewerName: prev.reviewerName || user.name || ""
+            }));
+        }
+    }, [user]);
+
+    useEffect(() => {
         let isCurrent = true;
 
         Promise.all([
@@ -33,8 +51,8 @@ function EventDetailsPage({ providers, providersLoaded, bookings, onCreateBookin
         ])
             .then(([availableSlots, providerReviews]) => {
                 if (isCurrent) {
-                    setAvailability(availableSlots);
-                    setReviews(providerReviews);
+                    setAvailability(Array.isArray(availableSlots) ? availableSlots : []);
+                    setReviews(Array.isArray(providerReviews) ? providerReviews : []);
                 }
             })
             .catch(() => {
@@ -46,9 +64,9 @@ function EventDetailsPage({ providers, providersLoaded, bookings, onCreateBookin
         };
     }, [providerId]);
 
-    const availableSlots = availability.filter(slot => slot.isAvailable);
-    const completedBookings = bookings.filter(booking => (
-        booking.status === "completed" && booking.provider?._id === providerId
+    const availableSlots = (availability || []).filter(slot => slot && slot.isAvailable);
+    const completedBookings = (bookings || []).filter(booking => (
+        booking.status === "completed" && (booking.provider?._id === providerId || booking.provider === providerId)
     ));
     const services = provider?.services?.length ? provider.services : [provider?.category];
 
@@ -56,6 +74,18 @@ function EventDetailsPage({ providers, providersLoaded, bookings, onCreateBookin
         event.preventDefault();
         setFormError("");
         setMessage("");
+
+        // If not logged in, redirect to customer login
+        if (!isAuthenticated) {
+            navigate("/customer/login", { state: { from: `/providers/${providerId}` } });
+            return;
+        }
+
+        if (!isCustomer) {
+            setFormError("Only customer accounts can book services. Please log in with a customer account.");
+            return;
+        }
+
         const slot = availableSlots.find(item => (
             `${item.date}|${item.startTime}|${item.endTime}` === selectedSlot
         ));
@@ -71,9 +101,9 @@ function EventDetailsPage({ providers, providersLoaded, bookings, onCreateBookin
                 ...bookingForm,
                 ...slot,
             });
-            setBookingForm({ customerName: "", customerEmail: "", service: "", notes: "" });
+            setBookingForm({ customerName: user?.name || "", customerEmail: user?.email || "", service: "", notes: "" });
             setSelectedSlot("");
-            setMessage("Booking request submitted.");
+            setMessage("Booking request submitted successfully! View your appointment under Bookings.");
             const response = await fetch(`${API_URL}/api/providers/${providerId}/availability`);
             setAvailability(await response.json());
         } catch (error) {
@@ -86,10 +116,18 @@ function EventDetailsPage({ providers, providersLoaded, bookings, onCreateBookin
         setFormError("");
         setMessage("");
 
+        if (!isAuthenticated || !isCustomer) {
+            setFormError("You must be logged in as a customer to submit a review.");
+            return;
+        }
+
         try {
             const response = await fetch(`${API_URL}/api/providers/${providerId}/reviews`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`
+                },
                 body: JSON.stringify({
                     ...reviewForm,
                     rating: Number(reviewForm.rating),
@@ -98,8 +136,8 @@ function EventDetailsPage({ providers, providersLoaded, bookings, onCreateBookin
             const data = await response.json();
             if (!response.ok) throw new Error(data.message || "Review could not be submitted.");
             setReviews([data.review, ...reviews]);
-            setReviewForm({ bookingId: "", reviewerName: "", rating: "5", comment: "" });
-            setMessage("Review submitted.");
+            setReviewForm({ bookingId: "", reviewerName: user?.name || "", rating: "5", comment: "" });
+            setMessage("Review submitted successfully! Thank you for your feedback.");
         } catch (error) {
             setFormError(error.message);
         }
@@ -113,17 +151,17 @@ function EventDetailsPage({ providers, providersLoaded, bookings, onCreateBookin
         return (
             <section className="page-heading">
                 <h1>Provider not found</h1>
-                <Link className="details-button" to="/services">Back to services</Link>
+                <p>The provider you are looking for does not exist or has been removed.</p>
+                <Link to="/services">Back to all services</Link>
             </section>
         );
     }
 
     return (
         <main className="provider-details-page">
-            <Link className="back-link" to="/services">Back to services</Link>
-            <p className="provider-category">{provider.category}</p>
+            <p className="section-label">{provider.category}</p>
             <h1>{provider.name}</h1>
-            <p className="provider-description">{provider.description || "Local service provider"}</p>
+            <p className="provider-description">{provider.description}</p>
 
             <div className="details-box">
                 <p><strong>Location:</strong> {provider.location}</p>
@@ -138,7 +176,7 @@ function EventDetailsPage({ providers, providersLoaded, bookings, onCreateBookin
                 <p className="section-label">Availability calendar</p>
                 <h2>Available booking times</h2>
                 {availableSlots.length === 0 ? (
-                    <p className="empty-message">No available times are listed.</p>
+                    <p className="empty-message">No available times are listed currently.</p>
                 ) : (
                     <div className="availability-list">
                         {availableSlots.map((slot, index) => {
@@ -157,6 +195,13 @@ function EventDetailsPage({ providers, providersLoaded, bookings, onCreateBookin
             <section className="profile-section">
                 <p className="section-label">Request a service</p>
                 <h2>Book this provider</h2>
+
+                {!isAuthenticated && (
+                    <p className="auth-notice-banner">
+                        🔒 Please <Link to="/customer/login" state={{ from: `/providers/${providerId}` }}>Log In as Customer</Link> to schedule an appointment.
+                    </p>
+                )}
+
                 <form className="provider-form booking-form" onSubmit={handleBookingSubmit}>
                     <div className="form-group">
                         <label htmlFor="customerName">Your name</label>
@@ -189,7 +234,9 @@ function EventDetailsPage({ providers, providersLoaded, bookings, onCreateBookin
                     </div>
                     {formError && <p className="form-error">{formError}</p>}
                     {message && <p className="form-success">{message}</p>}
-                    <button className="submit-button" type="submit">Request booking</button>
+                    <button className="submit-button" type="submit">
+                        {isAuthenticated ? "Request booking" : "Log In to Book"}
+                    </button>
                 </form>
             </section>
 
@@ -202,24 +249,25 @@ function EventDetailsPage({ providers, providersLoaded, bookings, onCreateBookin
                     <div className="review-list">
                         {reviews.map(review => (
                             <article className="review-item" key={review._id}>
-                                <div className="review-heading">
-                                    <strong>{review.reviewerName}</strong>
-                                    <span>{review.rating} / 5</span>
+                                <div>
+                                    <p><strong>{review.reviewerName}</strong> · {review.rating} / 5</p>
+                                    <p>{review.comment}</p>
                                 </div>
-                                <p>{review.comment || "No written comment."}</p>
                             </article>
                         ))}
                     </div>
                 )}
 
-                {completedBookings.length > 0 && (
+                {completedBookings.length > 0 && isAuthenticated && isCustomer && (
                     <form className="provider-form review-form" onSubmit={handleReviewSubmit}>
-                        <h3>Leave a review for a completed booking</h3>
+                        <h3>Leave a review</h3>
                         <div className="form-group">
-                            <label htmlFor="reviewBooking">Completed booking</label>
-                            <select id="reviewBooking" value={reviewForm.bookingId} onChange={event => setReviewForm({ ...reviewForm, bookingId: event.target.value })} required>
-                                <option value="">Choose a booking</option>
-                                {completedBookings.map(booking => <option key={booking._id} value={booking._id}>{booking.date} · {booking.service}</option>)}
+                            <label htmlFor="bookingId">Completed booking</label>
+                            <select id="bookingId" value={reviewForm.bookingId} onChange={event => setReviewForm({ ...reviewForm, bookingId: event.target.value })} required>
+                                <option value="">Select your completed booking</option>
+                                {completedBookings.map(item => (
+                                    <option key={item._id} value={item._id}>{item.service} on {item.date}</option>
+                                ))}
                             </select>
                         </div>
                         <div className="form-group">
@@ -227,14 +275,18 @@ function EventDetailsPage({ providers, providersLoaded, bookings, onCreateBookin
                             <input id="reviewerName" value={reviewForm.reviewerName} onChange={event => setReviewForm({ ...reviewForm, reviewerName: event.target.value })} required />
                         </div>
                         <div className="form-group">
-                            <label htmlFor="rating">Rating</label>
+                            <label htmlFor="rating">Rating (1 to 5)</label>
                             <select id="rating" value={reviewForm.rating} onChange={event => setReviewForm({ ...reviewForm, rating: event.target.value })}>
-                                {[5, 4, 3, 2, 1].map(rating => <option key={rating} value={rating}>{rating} / 5</option>)}
+                                <option value="5">5 - Excellent</option>
+                                <option value="4">4 - Good</option>
+                                <option value="3">3 - Average</option>
+                                <option value="2">2 - Poor</option>
+                                <option value="1">1 - Terrible</option>
                             </select>
                         </div>
                         <div className="form-group full-width">
                             <label htmlFor="comment">Comment</label>
-                            <textarea id="comment" value={reviewForm.comment} onChange={event => setReviewForm({ ...reviewForm, comment: event.target.value })} />
+                            <textarea id="comment" value={reviewForm.comment} onChange={event => setReviewForm({ ...reviewForm, comment: event.target.value })} required />
                         </div>
                         <button className="submit-button" type="submit">Submit review</button>
                     </form>

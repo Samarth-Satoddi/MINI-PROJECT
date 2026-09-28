@@ -13,15 +13,30 @@ import AboutPage from "./pages/AboutPage";
 import BookingsPage from "./pages/BookingsPage";
 import ProviderJoinPage from "./pages/ProviderJoinPage";
 
+import CustomerRegister from "./pages/CustomerRegister";
+import CustomerLogin from "./pages/CustomerLogin";
+import ProviderRegister from "./pages/ProviderRegister";
+import ProviderLogin from "./pages/ProviderLogin";
+import ProviderDashboard from "./pages/ProviderDashboard";
+import { ProtectedRoute } from "./components/ProtectedRoute";
+import { useAuth } from "./context/AuthContext";
+
 const API_URL = "http://localhost:5000";
 
 async function apiRequest(path, options = {}) {
+    const token = localStorage.getItem("token");
+    const headers = {
+        "Content-Type": "application/json",
+        ...options.headers,
+    };
+
+    if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+    }
+
     const response = await fetch(`${API_URL}${path}`, {
         ...options,
-        headers: {
-            "Content-Type": "application/json",
-            ...options.headers,
-        },
+        headers,
     });
     const data = await response.json().catch(() => ({}));
 
@@ -33,6 +48,7 @@ async function apiRequest(path, options = {}) {
 }
 
 function App() {
+    const { token } = useAuth();
     const [providers, setProviders] = useState([]);
     const [providersLoaded, setProvidersLoaded] = useState(false);
     const [bookings, setBookings] = useState([]);
@@ -45,8 +61,17 @@ function App() {
     }
 
     async function loadBookings() {
-        const data = await apiRequest("/api/bookings");
-        setBookings(data);
+        const currentToken = localStorage.getItem("token");
+        if (!currentToken) {
+            setBookings([]);
+            return;
+        }
+        try {
+            const data = await apiRequest("/api/bookings");
+            setBookings(data);
+        } catch {
+            setBookings([]);
+        }
     }
 
     useEffect(() => {
@@ -62,18 +87,18 @@ function App() {
                 if (isCurrent) setLoadError(error.message);
             });
 
-        apiRequest("/api/bookings")
-            .then(data => {
-                if (isCurrent) setBookings(data);
-            })
-            .catch(error => {
-                if (isCurrent) setLoadError(error.message);
-            });
-
         return () => {
             isCurrent = false;
         };
     }, []);
+
+    useEffect(() => {
+        if (token) {
+            loadBookings();
+        } else {
+            setBookings([]);
+        }
+    }, [token]);
 
     async function handleAddProvider(provider) {
         const result = await apiRequest("/api/providers", {
@@ -135,18 +160,6 @@ function App() {
                 />
 
                 <Route
-                    path="/join"
-                    element={
-                        <ProviderJoinPage
-                            providers={providers}
-                            onAddProvider={handleAddProvider}
-                            onUpdateProvider={handleUpdateProvider}
-                            onDeleteProvider={handleDeleteProvider}
-                        />
-                    }
-                />
-
-                <Route
                     path="/services"
                     element={
                         <EventsPage
@@ -167,12 +180,47 @@ function App() {
                     }
                 />
 
+                {/* Customer Routes */}
+                <Route path="/customer/register" element={<CustomerRegister />} />
+                <Route path="/customer/login" element={<CustomerLogin />} />
+
+                {/* Protected Customer Bookings */}
                 <Route
                     path="/bookings"
                     element={
-                        <BookingsPage
-                            bookings={bookings}
-                            onUpdateBookingStatus={handleUpdateBookingStatus}
+                        <ProtectedRoute allowedRole="customer">
+                            <BookingsPage
+                                bookings={bookings}
+                                onUpdateBookingStatus={handleUpdateBookingStatus}
+                                onRefreshBookings={loadBookings}
+                            />
+                        </ProtectedRoute>
+                    }
+                />
+
+                {/* Provider Routes */}
+                <Route path="/provider/register" element={<ProviderRegister />} />
+                <Route path="/provider/login" element={<ProviderLogin />} />
+
+                {/* Protected Provider Dashboard */}
+                <Route
+                    path="/provider/dashboard"
+                    element={
+                        <ProtectedRoute allowedRole="provider">
+                            <ProviderDashboard />
+                        </ProtectedRoute>
+                    }
+                />
+
+                {/* Provider join/management tab */}
+                <Route
+                    path="/join"
+                    element={
+                        <ProviderJoinPage
+                            providers={providers}
+                            onAddProvider={handleAddProvider}
+                            onUpdateProvider={handleUpdateProvider}
+                            onDeleteProvider={handleDeleteProvider}
                         />
                     }
                 />

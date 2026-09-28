@@ -22,6 +22,11 @@ const providerSchema = new mongoose.Schema({
         enum: ["pending", "approved", "rejected"],
         default: "pending"
     },
+    userId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null
+    },
     availability: [availabilitySchema]
 });
 

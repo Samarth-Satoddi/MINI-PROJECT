@@ -1170,3 +1170,219 @@ button {
   background: var(--danger);
   color: white;
 }
+
+/* =========================
+   AUTH PAGES & NAVBAR
+========================= */
+
+.auth-form-section {
+  max-width: 520px;
+  margin: 0 auto 50px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 36px 32px;
+  box-shadow: var(--shadow);
+}
+
+.auth-form-section .provider-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.auth-switch-text {
+  margin: 14px 0 0;
+  font-size: 14px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.auth-switch-text a {
+  color: var(--primary);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.auth-switch-text a:hover {
+  text-decoration: underline;
+}
+
+.auth-switch-text.secondary {
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+.nav-auth-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: 12px;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+}
+
+.nav-user-greeting {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary-dark);
+  background: var(--primary-light);
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+.nav-logout-btn {
+  padding: 6px 12px !important;
+  font-size: 13px !important;
+  cursor: pointer;
+}
+
+/* =========================
+   STATUS & VERIFICATION BADGES
+========================= */
+
+.status-tag {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.status-tag.status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.status-tag.status-confirmed {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.status-tag.status-completed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.status-tag.status-cancelled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.verification-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.verification-badge.verified {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.verification-badge.pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.verification-badge.rejected {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* =========================
+   PROVIDER DASHBOARD
+========================= */
+
+.dashboard-header-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 28px;
+  box-shadow: var(--shadow);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.dashboard-provider-info h2 {
+  margin: 0 0 6px;
+  font-size: 24px;
+  color: var(--text);
+}
+
+.dashboard-meta {
+  color: var(--text-muted);
+  font-size: 14px;
+  margin: 4px 0;
+}
+
+.dashboard-section {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 28px;
+  box-shadow: var(--shadow);
+}
+
+.dashboard-section h3 {
+  margin: 0 0 16px;
+  font-size: 20px;
+  color: var(--text);
+}
+
+.slots-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.slot-card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  background: var(--surface-soft);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.slot-card.unavailable {
+  opacity: 0.6;
+  background: #f3f4f6;
+}
+
+.slot-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.slot-toggle-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  background: white;
+  cursor: pointer;
+}
+
+.slot-delete-btn {
+  padding: 4px 8px;
+  font-size: 12px;
+  border-radius: 4px;
+  border: 1px solid #fca5a5;
+  background: #fef2f2;
+  color: var(--danger);
+  cursor: pointer;
+}
