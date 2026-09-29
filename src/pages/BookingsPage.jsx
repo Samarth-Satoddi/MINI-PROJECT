@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Link } from "react-router";
 import { useAuth } from "../context/AuthContext";
 
-function BookingsPage({ bookings, onUpdateBooking, onUpdateBookingStatus, onRefreshBookings }) {
+function BookingsPage({ bookings, onUpdateBooking, onUpdateBookingStatus, onDeleteBooking, onRefreshBookings }) {
     const { isCustomer } = useAuth();
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
@@ -76,6 +76,27 @@ function BookingsPage({ bookings, onUpdateBooking, onUpdateBookingStatus, onRefr
         try {
             await onUpdateBookingStatus(bookingId, status);
             setMessage(`Booking ${status} successfully.`);
+        } catch (requestError) {
+            setError(requestError.message);
+        } finally {
+            setCancellingId(null);
+        }
+    }
+
+    async function deleteBooking(bookingId) {
+        setError("");
+        setMessage("");
+        setCancellingId(bookingId);
+        try {
+            if (onDeleteBooking) {
+                await onDeleteBooking(bookingId);
+            } else if (onUpdateBookingStatus) {
+                await onUpdateBookingStatus(bookingId, "cancelled");
+            }
+            setMessage("Booking deleted and removed successfully.");
+            if (onRefreshBookings) {
+                onRefreshBookings();
+            }
         } catch (requestError) {
             setError(requestError.message);
         } finally {
@@ -220,11 +241,23 @@ function BookingsPage({ bookings, onUpdateBooking, onUpdateBookingStatus, onRefr
                                             className="secondary-button"
                                             type="button"
                                             disabled={cancellingId === booking._id}
-                                            onClick={() => updateStatus(booking._id, "cancelled")}
+                                            onClick={() => deleteBooking(booking._id)}
                                         >
                                             {cancellingId === booking._id ? "Cancelling..." : "Cancel Booking"}
                                         </button>
                                     </>
+                                )}
+
+                                {booking.status === "cancelled" && (
+                                    <button
+                                        className="secondary-button"
+                                        style={{ color: "#ef4444", borderColor: "#ef4444" }}
+                                        type="button"
+                                        disabled={cancellingId === booking._id}
+                                        onClick={() => deleteBooking(booking._id)}
+                                    >
+                                        {cancellingId === booking._id ? "Deleting..." : "🗑️ Delete / Remove"}
+                                    </button>
                                 )}
 
                                 {!isCustomer && booking.status === "pending" && (

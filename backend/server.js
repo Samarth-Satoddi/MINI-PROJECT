@@ -12,6 +12,7 @@ const User = require("./models/User");
 const Provider = require("./models/Provider");
 const Booking = require("./models/Booking");
 const Review = require("./models/Review");
+const Notification = require("./models/Notification");
 const { requireAuth, requireRole } = require("./middleware/auth");
 
 const defaultAllowedOrigins = [
@@ -46,7 +47,7 @@ app.use(cors({
         return callback(null, false);
     },
     credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization", "x-admin-key"]
 }));
 
@@ -281,7 +282,10 @@ app.get("/api/auth/me", requireAuth, async (req, res) => {
 // ==========================================
 
 app.get("/api/providers", async (req, res)=>{
-    const filters = { verified: true };
+    const filters = {
+        verified: true,
+        verificationStatus: "approved"
+    };
 
     if (req.query.category) {
         filters.category = new RegExp(`^${req.query.category}$`, "i");
@@ -384,7 +388,7 @@ app.put("/api/providers/me", requireAuth, requireRole("provider"), async (req, r
 });
 
 app.get("/api/providers/:id", async (req, res)=>{
-    const provider = await Provider.findOne({ _id: req.params.id, verified: true });
+    const provider = await Provider.findById(req.params.id);
 
     if (!provider) {
         return res.status(404).json({
@@ -403,7 +407,7 @@ app.post("/api/providers", async (req, res)=>{
     });
 
     res.json({
-        message: "Provider profile submitted for verification",
+        message: "Provider profile created successfully. Pending admin approval.",
         provider
     });
 });
@@ -470,10 +474,7 @@ app.delete("/api/providers/:id", requireAuth, requireRole("provider"), async (re
 });
 
 app.get("/api/providers/:id/availability", async (req, res)=>{
-    const provider = await Provider.findOne(
-        { _id: req.params.id, verified: true },
-        "availability"
-    );
+    const provider = await Provider.findById(req.params.id, "availability");
 
     if (!provider) {
         return res.status(404).json({ message: "Provider Not Found" });
@@ -593,7 +594,7 @@ app.get("/api/bookings", requireAuth, async (req, res)=>{
 
 app.post("/api/bookings", requireAuth, requireRole("customer"), async (req, res)=>{
     const { providerId, date, startTime, endTime, service, notes, customerName, customerEmail } = req.body;
-    const provider = await Provider.findOne({ _id: providerId, verified: true });
+    const provider = await Provider.findOne({ _id: providerId, verified: true, verificationStatus: "approved" });
 
     if (!provider) {
         return res.status(404).json({ message: "Verified Provider Not Found" });
@@ -639,8 +640,44 @@ app.post("/api/bookings", requireAuth, requireRole("customer"), async (req, res)
             status: "pending"
         });
 
+        // Provider notification
+        let recipientUserId = provider.userId;
+        if (!recipientUserId && provider.email) {
+            const matchedUser = await User.findOne({ email: provider.email });
+            if (matchedUser) {
+                recipientUserId = matchedUser._id;
+                provider.userId = matchedUser._id;
+                await provider.save();
+            }
+        }
+
+        if (recipientUserId) {
+            try {
+                await Notification.create({
+                    recipientUserId,
+                    providerId: provider._id,
+                    bookingId: booking._id,
+                    type: "NEW_BOOKING",
+                    title: "New Booking Received",
+                    message: `${booking.customerName} booked ${booking.service} for ${booking.date} from ${booking.startTime} to ${booking.endTime}.`,
+                    metadata: {
+                        customerName: booking.customerName,
+                        service: booking.service,
+                        date: booking.date,
+                        startTime: booking.startTime,
+                        endTime: booking.endTime,
+                        bookingStatus: booking.status,
+                        notes: booking.notes || ""
+                    },
+                    isRead: false
+                });
+            } catch (notifErr) {
+                console.error("Failed to create provider notification:", notifErr.message);
+            }
+        }
+
         return res.status(201).json({
-            message: "Booking Created Successfully",
+            message: "Booking Created Successfully. The provider has been notified.",
             booking
         });
     } catch (error) {
@@ -784,34 +821,184 @@ app.put("/api/bookings/:id", requireAuth, async (req, res) => {
     }
 });
 
+app.delete("/api/bookings/:id", requireAuth, async (req, res) => {
+    try {
+        const booking = await Booking.findById(req.params.id);
+        if (!booking) {
+            return res.status(404).json({ message: "Booking Not Found" });
+        }
+
+        if (req.user.role === "customer") {
+            if (!booking.customer || booking.customer.toString() !== req.user.userId) {
+                return res.status(403).json({ message: "Forbidden. You can only delete your own bookings." });
+            }
+        } else if (req.user.role === "provider") {
+            const provider = await Provider.findOne({ userId: req.user.userId });
+            if (!provider || booking.provider.toString() !== provider._id.toString()) {
+                return res.status(403).json({ message: "Forbidden. You can only delete bookings for your own profile." });
+            }
+        }
+
+        // Free up the provider availability slot if not completed
+        if (booking.status !== "completed") {
+            await Provider.updateOne(
+                { _id: booking.provider, "availability.date": booking.date, "availability.startTime": booking.startTime, "availability.endTime": booking.endTime },
+                { $set: { "availability.$.isAvailable": true } }
+            );
+        }
+
+        await Booking.findByIdAndDelete(req.params.id);
+        res.json({ message: "Booking deleted successfully" });
+    } catch (error) {
+        res.status(500).json({ message: error.message || "Failed to delete booking" });
+    }
+});
+
+
+// ==========================================
+// NOTIFICATIONS ROUTES (PROTECTED - PROVIDER ONLY)
+// ==========================================
+
+app.get("/api/notifications", requireAuth, requireRole("provider"), async (req, res) => {
+    try {
+        const notifications = await Notification.find({
+            recipientUserId: req.user.userId
+        }).sort({ createdAt: -1 });
+
+        return res.json(notifications);
+    } catch (error) {
+        return res.status(500).json({ message: error.message || "Failed to fetch notifications." });
+    }
+});
+
+app.get("/api/notifications/unread-count", requireAuth, requireRole("provider"), async (req, res) => {
+    try {
+        const count = await Notification.countDocuments({
+            recipientUserId: req.user.userId,
+            isRead: false
+        });
+        return res.json({ unreadCount: count });
+    } catch (error) {
+        return res.status(500).json({ message: error.message || "Failed to get unread notification count." });
+    }
+});
+
+const handleMarkNotificationRead = async (req, res) => {
+    try {
+        const notification = await Notification.findById(req.params.id);
+        if (!notification) {
+            return res.status(404).json({ message: "Notification not found." });
+        }
+
+        if (notification.recipientUserId.toString() !== req.user.userId) {
+            return res.status(403).json({ message: "Forbidden. You cannot modify notifications belonging to another provider." });
+        }
+
+        notification.isRead = true;
+        await notification.save();
+
+        return res.json({
+            message: "Notification marked as read.",
+            notification
+        });
+    } catch (error) {
+        return res.status(500).json({ message: error.message || "Failed to mark notification as read." });
+    }
+};
+
+app.patch("/api/notifications/:id/read", requireAuth, requireRole("provider"), handleMarkNotificationRead);
+app.put("/api/notifications/:id/read", requireAuth, requireRole("provider"), handleMarkNotificationRead);
+
+const handleMarkAllNotificationsRead = async (req, res) => {
+    try {
+        await Notification.updateMany(
+            { recipientUserId: req.user.userId, isRead: false },
+            { $set: { isRead: true } }
+        );
+        return res.json({ message: "All notifications marked as read." });
+    } catch (error) {
+        return res.status(500).json({ message: error.message || "Failed to mark all notifications as read." });
+    }
+};
+
+app.patch("/api/notifications/read-all", requireAuth, requireRole("provider"), handleMarkAllNotificationsRead);
+app.put("/api/notifications/read-all", requireAuth, requireRole("provider"), handleMarkAllNotificationsRead);
+
+app.delete("/api/notifications/:id", requireAuth, requireRole("provider"), async (req, res) => {
+    try {
+        const notification = await Notification.findById(req.params.id);
+        if (!notification) {
+            return res.status(404).json({ message: "Notification not found." });
+        }
+
+        if (notification.recipientUserId.toString() !== req.user.userId) {
+            return res.status(403).json({ message: "Forbidden. You cannot delete notifications belonging to another provider." });
+        }
+
+        await Notification.findByIdAndDelete(req.params.id);
+        return res.json({ message: "Notification deleted successfully." });
+    } catch (error) {
+        return res.status(500).json({ message: error.message || "Failed to delete notification." });
+    }
+});
+
 // ==========================================
 // ADMIN VERIFICATION ROUTES
 // ==========================================
 
-app.get("/api/admin/providers", requireAdmin, async (req, res)=>{
-    const status = req.query.status || "pending";
-    const providers = await Provider.find({ verificationStatus: status });
-    res.json(providers);
+app.post("/api/admin/verify", requireAdmin, (req, res) => {
+    res.json({ success: true, message: "Admin authenticated successfully." });
 });
 
-app.put("/api/admin/providers/:id/verification", requireAdmin, async (req, res)=>{
-    const { status } = req.body;
-
-    if (!["approved", "rejected"].includes(status)) {
-        return res.status(400).json({ message: "Status must be approved or rejected" });
+app.get("/api/admin/providers", requireAdmin, async (req, res) => {
+    try {
+        const status = req.query.status;
+        const query = {};
+        if (status && status !== "all") {
+            query.verificationStatus = status;
+        }
+        const providers = await Provider.find(query).sort({ createdAt: -1 });
+        res.json(providers);
+    } catch (error) {
+        res.status(500).json({ message: error.message || "Failed to fetch providers." });
     }
+});
 
-    const provider = await Provider.findByIdAndUpdate(
-        req.params.id,
-        { verificationStatus: status, verified: status === "approved" },
-        { returnDocument: 'after', runValidators: true }
-    );
+const handleAdminVerification = async (req, res) => {
+    try {
+        const { status } = req.body;
 
-    if (!provider) {
-        return res.status(404).json({ message: "Provider Not Found" });
+        if (!["approved", "rejected"].includes(status)) {
+            return res.status(400).json({ message: "Status must be approved or rejected" });
+        }
+
+        const provider = await Provider.findByIdAndUpdate(
+            req.params.id,
+            { verificationStatus: status, verified: status === "approved" },
+            { returnDocument: 'after', runValidators: true }
+        );
+
+        if (!provider) {
+            return res.status(404).json({ message: "Provider Not Found" });
+        }
+
+        res.json({ message: `Provider verification updated to ${status}.`, provider });
+    } catch (error) {
+        res.status(500).json({ message: error.message || "Failed to update provider status." });
     }
+};
 
-    res.json({ message: "Provider Verification Updated", provider });
+app.put("/api/admin/providers/:id/verification", requireAdmin, handleAdminVerification);
+app.patch("/api/admin/providers/:id/verification", requireAdmin, handleAdminVerification);
+
+app.patch("/api/admin/providers/:id/approve", requireAdmin, async (req, res) => {
+    req.body = { status: "approved" };
+    return handleAdminVerification(req, res);
+});
+
+app.patch("/api/admin/providers/:id/reject", requireAdmin, async (req, res) => {
+    req.body = { status: "rejected" };
+    return handleAdminVerification(req, res);
 });
 
 if (!process.env.VERCEL) {

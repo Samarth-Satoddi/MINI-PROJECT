@@ -28,6 +28,6 @@ const providerSchema = new mongoose.Schema({
         default: null
     },
     availability: [availabilitySchema]
-});
+}, { timestamps: true });
 
 module.exports = mongoose.model("Provider", providerSchema);

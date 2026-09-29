@@ -103,7 +103,7 @@ function EventDetailsPage({ providers, providersLoaded, bookings, onCreateBookin
             });
             setBookingForm({ customerName: user?.name || "", customerEmail: user?.email || "", service: "", notes: "" });
             setSelectedSlot("");
-            setMessage("Booking request submitted successfully! View your appointment under Bookings.");
+            setMessage("Booking created successfully. The provider has been notified. View your appointment under Bookings.");
             const response = await fetch(`${API_URL}/api/providers/${providerId}/availability`);
             setAvailability(await response.json());
         } catch (error) {

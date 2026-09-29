@@ -18,6 +18,7 @@ import CustomerLogin from "./pages/CustomerLogin";
 import ProviderRegister from "./pages/ProviderRegister";
 import ProviderLogin from "./pages/ProviderLogin";
 import ProviderDashboard from "./pages/ProviderDashboard";
+import AdminPage from "./pages/AdminPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { useAuth } from "./context/AuthContext";
 
@@ -153,6 +154,14 @@ function App() {
         return result;
     }
 
+    async function handleDeleteBooking(bookingId) {
+        const result = await apiRequest(`/api/bookings/${bookingId}`, {
+            method: "DELETE",
+        });
+        await loadBookings();
+        return result;
+    }
+
     return (
         <div>
             <Navbar />
@@ -202,6 +211,7 @@ function App() {
                                 bookings={bookings}
                                 onUpdateBooking={handleUpdateBooking}
                                 onUpdateBookingStatus={handleUpdateBookingStatus}
+                                onDeleteBooking={handleDeleteBooking}
                                 onRefreshBookings={loadBookings}
                             />
                         </ProtectedRoute>
@@ -238,6 +248,11 @@ function App() {
                 <Route
                     path="/about"
                     element={<AboutPage />}
+                />
+
+                <Route
+                    path="/admin"
+                    element={<AdminPage />}
                 />
             </Routes>
 
